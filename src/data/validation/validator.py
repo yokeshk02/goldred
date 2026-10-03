@@ -39,12 +39,14 @@ class RequestValidator:
         issues: List[str] = []
         data = record.to_dict() if isinstance(record, RecoveryRequest) else record
 
-        # Check required fields
+        # 1. Required schema verification: Ensure all critical attributes exist
+        # to prevent uninitialized fields or NoneTypes from entering the Bayesian scoring pipeline.
         for field in REQUIRED_FIELDS:
             if field not in data or data[field] is None:
                 issues.append(f"Missing required field: '{field}'")
 
-        # Range checks
+        # 2. Numeric probability bounds verification: Enforce strict [0.0, 1.0] range
+        # to prevent arithmetic overflow, underflow, or inverted risk scoring.
         numeric_bounds = [
             ("device_trust_score", 0.0, 1.0),
             ("ip_risk_score", 0.0, 1.0),
@@ -61,11 +63,13 @@ class RequestValidator:
                 except (ValueError, TypeError):
                     issues.append(f"Field '{field}' must be numeric")
 
-        # Categorical checks
+        # 3. Categorical role validation: Restrict roles to authorized university personas
+        # to prevent unauthorized escalation via novel or spoofed role strings.
         role = data.get("role")
         if role and role not in VALID_ROLES:
             issues.append(f"Invalid role: '{role}' (expected one of {VALID_ROLES})")
 
+        # 4. Directory status validation: Restrict to valid LDAP/Active Directory lifecycle states
         dir_status = data.get("directory_status")
         if dir_status and dir_status not in VALID_DIRECTORY_STATUSES:
             issues.append(f"Invalid directory status: '{dir_status}'")

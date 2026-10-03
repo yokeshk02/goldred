@@ -286,26 +286,204 @@ The engine avoids hardcoding by loading parameters from `src/config/risk_rules.j
 
 ---
 
-## 15. Limitations & Future Work
+---
+
+## 15. API Reference
+
+The backend Express application (`server/index.ts`) exposes the following REST API endpoints. Every endpoint has been verified against the live implementation:
+
+| Endpoint | Method | Purpose | Input | Output |
+|---|---|---|---|---|
+| `/api/health` | `GET` | Health check probe | None | JSON service status & timestamp |
+| `/api/requests` | `GET` | Retrieve recovery request sample batch | None | Array of `RecoveryRequestData` objects |
+| `/api/evaluate` | `POST` | Evaluate request via Proposed Risk Engine | `{ request: RecoveryRequestData, customWeights?: Record<string, number> }` | `RiskEvaluationData` with multi-signal score, confidence, & reasons |
+| `/api/baseline` | `POST` | Evaluate request via Baseline Heuristic Model | `{ request: RecoveryRequestData }` | Baseline `RiskEvaluationData` |
+| `/api/scenarios` | `GET` | Fetch 7 failure scenario test archetypes | None | Array of `FailureScenarioDefinition` objects |
+| `/api/metrics` | `GET` | Retrieve serialized benchmark metrics & confusion matrices | None | JSON summary of 10,000-sample empirical experiment |
+| `/api/rules` | `GET` | Fetch active risk rules configuration | None | JSON contents of `src/config/risk_rules.json` |
+| `/api/rules` | `POST` | Update and persist risk rules configuration | JSON policy rules object | `{ success: true, message: "Rules updated successfully" }` |
+| `/api/audit` | `POST` | Append operator action or override to audit log | `{ requestId, userId, action, riskScore, decision }` | `{ success: true, log_id: string, entry: object }` |
+| `/api/audit` | `GET` | Retrieve session compliance audit log history | None | Array of recorded `AuditLogEntry` objects |
+
+### Request & Response Examples
+
+#### 1. Evaluate Recovery Request (`POST /api/evaluate`)
+**Request:**
+```json
+POST /api/evaluate
+Content-Type: application/json
+
+{
+  "request": {
+    "request_id": "req-faculty-demo-01",
+    "user_id": "fac_chen_9214",
+    "role": "Faculty",
+    "account_age": 1420,
+    "recovery_reason": "lost_phone_travel",
+    "device_known": false,
+    "device_trust_score": 0.20,
+    "ip_risk_score": 0.15,
+    "geo_consistency": 0.90,
+    "login_history_consistency": 0.88,
+    "identity_evidence_available": true,
+    "identity_evidence_score": 0.95,
+    "directory_status": "ACTIVE",
+    "mfa_history": "RECENTLY_RESET",
+    "recovery_velocity": 1
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "request_id": "req-faculty-demo-01",
+  "user_id": "fac_chen_9214",
+  "role": "Faculty",
+  "decision": "MANUAL_REVIEW",
+  "risk_score": 0.364,
+  "confidence_score": 0.900,
+  "reason_codes": [
+    "AMBIGUOUS_RISK_SCORE_REQUIRES_OPERATOR_REVIEW (Risk 0.36)",
+    "UNRECOGNIZED_DEVICE_REGISTERED",
+    "HIGH_FIDELITY_IDENTITY_EVIDENCE"
+  ],
+  "evidence_used": ["device", "identity", "network", "geo", "login_history", "directory", "mfa_history", "velocity"],
+  "evidence_missing": [],
+  "evidence_delayed": [],
+  "signals_breakdown": {
+    "identity_evidence": 0.05,
+    "device_trust": 0.80,
+    "ip_risk": 0.15,
+    "geo_consistency": 0.10,
+    "login_history": 0.10,
+    "directory_risk": 0.05,
+    "mfa_history": 0.45,
+    "recovery_velocity": 0.25
+  },
+  "recommended_action": "Escalate to university help desk specialist. Review primary identity documentation and verify secondary contact before authorizing override for Faculty.",
+  "policy_version": "2.4.0",
+  "engine_type": "proposed_risk_engine"
+}
+```
+
+#### 2. Record Compliance Audit Log (`POST /api/audit`)
+**Request:**
+```json
+POST /api/audit
+Content-Type: application/json
+
+{
+  "action": "HELP_DESK_MANUAL_OVERRIDE_APPROVED",
+  "requestId": "req-faculty-demo-01",
+  "userId": "fac_chen_9214",
+  "riskScore": 0.364,
+  "decision": "APPROVE",
+  "operatorId": "agent_j_doe",
+  "verificationMethod": "In-person university faculty ID verification"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "log_id": "audit_1",
+  "entry": {
+    "timestamp": "2026-10-03T23:30:00.000Z",
+    "action": "HELP_DESK_MANUAL_OVERRIDE_APPROVED",
+    "requestId": "req-faculty-demo-01",
+    "userId": "fac_chen_9214",
+    "riskScore": 0.364,
+    "decision": "APPROVE",
+    "operatorId": "agent_j_doe",
+    "verificationMethod": "In-person university faculty ID verification"
+  }
+}
+```
+
+---
+
+## 16. Database Architecture & Data Schema
+
+> [!NOTE]
+> **Current prototype does not use a persistent database.**
+
+To guarantee 100% deterministic reproducibility, eliminate external database server dependencies (e.g., PostgreSQL or MongoDB), and prevent environment-specific connection failures during academic evaluations, this prototype uses a **declarative, flat-file and in-memory data pipeline**:
+- **Synthetic Ingestion Stores:** Standardized CSV and JSON fixtures located under `data/synthetic/`.
+- **Policy Configuration:** Declarative JSON schema located at `src/config/risk_rules.json`.
+- **Runtime Audit Log:** In-memory operational session array in `server/index.ts` accessible via `/api/audit`.
+
+### Data Entities & Schema Dictionary
+
+| Entity / Data Store | Storage Medium | Important Fields | Purpose |
+|---|---|---|---|
+| **`RecoveryRequest`** | `data/synthetic/recovery_requests_10k.csv`<br>`data/synthetic/sample_requests.json` | `request_id` (PK, UUID)<br>`user_id` (String)<br>`role` (Student, Faculty, Alumni, Researcher)<br>`device_trust_score` (Float [0,1])<br>`ip_risk_score` (Float [0,1])<br>`identity_evidence_score` (Float [0,1])<br>`directory_status` (ACTIVE, SUSPENDED, LEAVE)<br>`recovery_velocity` (Int, 48h count)<br>`source_missing` (String)<br>`source_delayed` (String) | Encapsulates incoming user account recovery submissions and multi-signal telemetry claims. |
+| **`RiskEvaluation`** | Computed in-memory;<br>Served via `/api/evaluate` & `/api/baseline` | `request_id` (FK)<br>`user_id` (String)<br>`role` (String)<br>`decision` (APPROVE, MANUAL_REVIEW, DENY)<br>`risk_score` (Float [0,1])<br>`confidence_score` (Float [0,1])<br>`reason_codes` (List[String])<br>`evidence_used` (List[String])<br>`evidence_missing` (List[String])<br>`recommended_action` (String) | Structured decision outcome returned to help-desk technicians and logged for compliance auditing. |
+| **`RiskRulesConfig`** | `src/config/risk_rules.json` | `policy_version` (String)<br>`global_weights` (Map[Signal, Float])<br>`role_specific_policies` (Map[Role, Thresholds])<br>`missing_data_penalties` (Map[Signal, Penalties])<br>`delayed_data_penalties` (Map[Signal, Penalties])<br>`hard_rule_triggers` (Map[Rule, Actions]) | Centralized, hot-reloadable policy configuration governing decision ceilings and penalty matrices. |
+| **`AuditLogEntry`** | In-memory server array (`auditLogs` in `server/index.ts`) | `timestamp` (ISO-8601 DateTime)<br>`log_id` (Auto-increment String)<br>`action` (String)<br>`requestId` (FK)<br>`userId` (String)<br>`riskScore` (Float)<br>`decision` (String)<br>`operatorId` (Optional String) | Session audit trail tracking technician decisions, overrides, and administrative adjustments. |
+| **`FailureScenarioDefinition`** | `shared/failure-scenarios.ts` | `id` (String)<br>`title` (String)<br>`description` (String)<br>`persona` (String)<br>`ground_truth` (LEGITIMATE vs FRAUD)<br>`category` (String)<br>`request` (RecoveryRequestData)<br>`baseline_fails_because` (String)<br>`risk_engine_protects_because` (String) | Pre-configured test fixtures for UI interactive evaluation and failure mode verification. |
+
+---
+
+## 17. Evaluator Reproducibility Lifecycle
+
+Follow this exact six-stage sequence to install, test, benchmark, build, and run the project from scratch:
+
+```
+[1. Install] ──▶ [2. Generate Dataset] ──▶ [3. Run Tests] ──▶ [4. Run Benchmark] ──▶ [5. Build] ──▶ [6. Start]
+```
+
+### Stage 1: Install Dependencies
+```bash
+# Install Python statistical and evaluation packages
+pip install pandas numpy scikit-learn pytest matplotlib seaborn
+
+# Install Node.js frontend and server packages
+pnpm install
+```
+
+### Stage 2: Generate Synthetic Dataset (10,000 Records)
+```bash
+python -m src.data.generator.generate_recovery_dataset --rows 10000 --seed 42 --output data/synthetic/recovery_requests_10k.csv
+```
+
+### Stage 3: Run Automated Unit Tests (26 Tests)
+```bash
+python -m pytest -v
+```
+*Expected: 26 passed in ~0.25s.*
+
+### Stage 4: Run Empirical Benchmark & Ablation Studies
+```bash
+python scripts/run_experiment.py --rows 10000 --seed 42
+```
+*Generates `docs/results/experiment_summary.json` and confusion matrix graphics.*
+
+### Stage 5: Type Check & Build Production Bundle
+```bash
+# Validate TypeScript typings across client, server, and shared code
+pnpm check
+
+# Build optimized production bundle
+pnpm build
+```
+
+### Stage 6: Start Application Server
+```bash
+# Option A: Start production server (Express serving Vite bundle)
+node dist/index.js
+
+# Option B: Start development server with hot module replacement
+pnpm dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your web browser to interact with the **Aurelia Help-Desk Verification Cockpit**.
+
+---
+
+## 18. Limitations & Future Work
 
 1. **Biometric Integration:** Currently relies on secondary document scores; future work could incorporate WebAuthn/FIDO2 hardware attestations.
 2. **Behavioral Keystroke Dynamics:** Expanding telemetry to include behavioral typing cadences for web portal access.
 3. **Cross-Institutional Threat Sharing:** Federating threat reputation lists across higher-education consortia (e.g., Eduroam, InCommon).
 
----
-
-## 16. Evaluation Verification Commands
-
-```bash
-# 1. Run unit test suite (26 assertions)
-python -m pytest -v
-
-# 2. Run synthetic dataset generation (10k records)
-python -m src.data.generator.generate_recovery_dataset --rows 10000 --seed 42
-
-# 3. Run full empirical benchmark & ablation suite
-python scripts/run_experiment.py --rows 10000 --seed 42
-
-# 4. Start interactive help-desk verification desk
-pnpm dev
-```

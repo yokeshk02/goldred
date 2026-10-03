@@ -10,30 +10,35 @@ import uuid
 
 @dataclass
 class RecoveryRequest:
+    """
+    Structured data model representing an incoming account-recovery submission.
+    Encapsulates identity claims, hardware signals, network reputation, institutional directory status,
+    and telemetry latency/missingness flags.
+    """
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str = ""
     role: str = "Student"  # Student, Faculty, Alumni, Temporary Researcher
-    account_age: int = 180  # days
+    account_age: int = 180  # Account tenure in days
     recovery_reason: str = "forgot_password"
     device_id: str = ""
-    device_known: bool = True
-    device_trust_score: float = 0.85
+    device_known: bool = True  # Provenance match against enrolled device registry
+    device_trust_score: float = 0.85  # Hardware health & certificate score [0.0, 1.0]
     device_change: bool = False
-    ip_risk_score: float = 0.10
-    geo_consistency: float = 0.95
-    login_history_consistency: float = 0.90
+    ip_risk_score: float = 0.10  # External threat intelligence & Tor/VPN reputation [0.0, 1.0]
+    geo_consistency: float = 0.95  # Match with historical campus/city geofence [0.0, 1.0]
+    login_history_consistency: float = 0.90  # Consistency with regular login intervals [0.0, 1.0]
     identity_evidence_available: bool = True
-    identity_evidence_score: float = 0.85
+    identity_evidence_score: float = 0.85  # Secondary ID verification confidence [0.0, 1.0]
     directory_status: str = "ACTIVE"  # ACTIVE, SUSPENDED, LEAVE, PENDING_REVIEW
     mfa_history: str = "ACTIVE_HEALTHY"  # ACTIVE_HEALTHY, RECENTLY_RESET, FAILED_RECENTLY, DISABLED
     previous_recovery_count: int = 0
-    recovery_velocity: int = 0  # recoveries attempted within past 48h
-    evidence_delay: bool = False
+    recovery_velocity: int = 0  # Frequency of password reset attempts within rolling 48-hour window
+    evidence_delay: bool = False  # Asynchronous verification latency indicator
     source_missing: str = "none"  # none, device, identity, directory, network, multiple
     source_delayed: str = "none"  # none, directory, device_intelligence, identity, multiple
     fraud_scenario: str = "none"  # none, credential_stuffing, sim_swap, social_engineering, dormant_takeover, insider_threat
-    ground_truth: str = "LEGITIMATE"  # LEGITIMATE, FRAUD
-    expected_decision: str = "APPROVE"  # APPROVE, MANUAL_REVIEW, DENY
+    ground_truth: str = "LEGITIMATE"  # Evaluative label: LEGITIMATE vs FRAUD
+    expected_decision: str = "APPROVE"  # Reference expected triage decision
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

@@ -16,12 +16,12 @@ async function startServer() {
 
   app.use(express.json());
 
-  // API Routes
+  // 1. Health Probe Endpoint
   app.get("/api/health", (_req, res) => {
     res.json({ status: "healthy", timestamp: new Date().toISOString(), service: "risk-verification-engine" });
   });
 
-  // Get sample requests
+  // 2. Recovery Requests Ingestion: Ingests synthetic requests or falls back to failure scenarios
   app.get("/api/requests", (_req, res) => {
     try {
       const samplePath = path.join(PROJECT_ROOT, "data", "synthetic", "sample_requests.json");
@@ -32,11 +32,12 @@ async function startServer() {
     } catch (e) {
       console.error("Error reading sample requests:", e);
     }
-    // Fallback to pre-configured failure scenarios requests
+    // Fallback: Serve pre-configured failure scenarios if file is absent
     res.json(FAILURE_SCENARIOS.map((s) => s.request));
   });
 
-  // Evaluate request using Proposed Risk Engine
+  // 3. Proposed Risk Engine Evaluation Endpoint
+  // Error Boundary: Validates request body existence (HTTP 400) and wraps computation in try/catch (HTTP 500)
   app.post("/api/evaluate", (req, res) => {
     try {
       const body = req.body as { request: RecoveryRequestData; customWeights?: Record<string, number> };
@@ -50,7 +51,8 @@ async function startServer() {
     }
   });
 
-  // Evaluate request using Baseline Model
+  // 4. Baseline Heuristic Evaluation Endpoint
+  // Error Boundary: Rejects missing payload with HTTP 400 Bad Request
   app.post("/api/baseline", (req, res) => {
     try {
       const body = req.body as { request: RecoveryRequestData };
@@ -64,12 +66,12 @@ async function startServer() {
     }
   });
 
-  // Get 7 Failure Scenarios
+  // 5. Failure Scenarios Catalog: Returns the 7 pre-configured failure and attack archetypes
   app.get("/api/scenarios", (_req, res) => {
     res.json(FAILURE_SCENARIOS);
   });
 
-  // Get Empirical Benchmark Metrics & Confusion Matrices
+  // 6. Empirical Benchmark Metrics Endpoint: Serves precomputed 10k experiment results & confusion matrices
   app.get("/api/metrics", (_req, res) => {
     try {
       const summaryPath = path.join(PROJECT_ROOT, "docs", "results", "experiment_summary.json");
@@ -83,7 +85,7 @@ async function startServer() {
     res.status(404).json({ error: "Experiment summary not found. Run python scripts/run_experiment.py first." });
   });
 
-  // Get & Update Configurable Rules
+  // 7. Policy Rules Management: Read and persist live risk weight modifications
   app.get("/api/rules", (_req, res) => {
     try {
       const rulesPath = path.join(PROJECT_ROOT, "src", "config", "risk_rules.json");
@@ -107,7 +109,7 @@ async function startServer() {
     }
   });
 
-  // Audit Log Endpoint
+  // 8. Session Audit Trail Logging: In-memory structured telemetry for compliance review
   const auditLogs: any[] = [];
   app.post("/api/audit", (req, res) => {
     const entry = {

@@ -184,7 +184,7 @@ export function evaluateProposed(req: RecoveryRequestData, customWeights?: Recor
   if (req.identity_evidence_score > 0.80 && req.recovery_velocity >= 3) conflicts.push("VALID_IDENTITY_WITH_ABNORMAL_VELOCITY");
   if (req.device_known && req.geo_consistency < 0.25) conflicts.push("KNOWN_DEVICE_FROM_IMPOSSIBLE_LOCATION");
 
-  // Weights
+  // Multi-Signal Weights: Prioritize identity evidence and device hardware provenance
   const weights: Record<string, number> = {
     identity_evidence: 0.30,
     device_trust: 0.20,
@@ -196,6 +196,7 @@ export function evaluateProposed(req: RecoveryRequestData, customWeights?: Recor
     ...(customWeights || {}),
   };
 
+  // Role Modifier: Alumni do not possess managed campus hardware; shift weight to secondary identity verification
   if (req.role === "Alumni") {
     weights.identity_evidence += 0.10;
     weights.device_trust = Math.max(0.10, weights.device_trust - 0.05);
@@ -211,6 +212,7 @@ export function evaluateProposed(req: RecoveryRequestData, customWeights?: Recor
     recovery_velocity: veloRisk,
   };
 
+  // Risk Calculation: R_base = sum(w_i * s_i) / sum(w_i)
   let totalW = 0;
   let sumW = 0;
   for (const k of Object.keys(weights)) {
@@ -221,7 +223,7 @@ export function evaluateProposed(req: RecoveryRequestData, customWeights?: Recor
   }
   let baseRisk = totalW > 0 ? sumW / totalW : 0.50;
 
-  // Penalties
+  // Additive Risk Penalties: Increment composite risk for missing signals, faculty device anomalies, and conflicts
   let riskPenalty = 0;
   if (missing.includes("device")) riskPenalty += 0.10;
   if (missing.includes("identity")) riskPenalty += 0.25;
@@ -231,11 +233,12 @@ export function evaluateProposed(req: RecoveryRequestData, customWeights?: Recor
 
   const finalRisk = Math.min(1.0, Math.max(0.0, baseRisk + riskPenalty));
 
-  // Confidence
+  // Confidence Calculation: C_final = C_base - deductions (starts at 1.00)
   let baseConf = 1.0;
   if (missing.includes("device")) baseConf -= 0.20;
   if (missing.includes("identity")) baseConf -= 0.35;
   if (missing.includes("directory")) baseConf -= 0.15;
+  // Delayed-data handling: Deduct confidence for pending scans/syncs
   if (delayed.includes("identity")) baseConf -= 0.22;
   if (delayed.includes("directory")) baseConf -= 0.10;
   if (delayed.includes("device_intelligence")) baseConf -= 0.10;
@@ -243,7 +246,7 @@ export function evaluateProposed(req: RecoveryRequestData, customWeights?: Recor
   if (req.role === "Temporary Researcher" && (missing.length > 0 || delayed.length > 0)) baseConf -= 0.10;
   const finalConf = Math.min(1.0, Math.max(0.10, baseConf));
 
-  // Role Thresholds
+  // Role Calibrated Decision Thresholds
   const roleThresholds: Record<string, { approvalCeiling: number; denialFloor: number; minConf: number }> = {
     Student: { approvalCeiling: 0.32, denialFloor: 0.72, minConf: 0.65 },
     Faculty: { approvalCeiling: 0.25, denialFloor: 0.65, minConf: 0.80 },

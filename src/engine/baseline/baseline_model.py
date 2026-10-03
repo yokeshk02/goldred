@@ -63,19 +63,27 @@ class BaselineRecoveryModel:
 
         identity_score = req.identity_evidence_score if req.identity_evidence_available else 0.0
 
-        # Baseline Simple Rule:
+        # Baseline Simple Heuristic:
+        # Represents standard collegiate help-desk practice:
+        # 1. Automated APPROVE: Requires high identity score (>= 0.80) AND known hardware.
+        #    Vulnerability: Fails for legitimate users with lost/new phones (drops them to manual review).
         if identity_score >= self.approval_identity_threshold and (req.device_known or not self.require_known_device):
             decision = "APPROVE"
             risk_score = max(0.10, 1.0 - identity_score)
             confidence_score = 0.85
             reasons.append("BASELINE_IDENTITY_VERIFIED_AND_DEVICE_KNOWN")
             recommended_action = "Issue standard automated self-service password reset link"
+
+        # 2. Automated DENY: Weak identity evidence (< 0.35) combined with unrecognized hardware.
         elif identity_score < self.denial_identity_threshold and not req.device_known:
             decision = "DENY"
             risk_score = 0.85
             confidence_score = 0.75
             reasons.append("BASELINE_LOW_IDENTITY_EVIDENCE_AND_UNKNOWN_DEVICE")
             recommended_action = "Reject automated recovery; advise user to visit IT service desk in person"
+
+        # 3. MANUAL_REVIEW: Default catch-all for all other combinations.
+        #    Limitation: Lacks risk-confidence calibration, causing excessive operator overload (~49.5% review rate).
         else:
             decision = "MANUAL_REVIEW"
             risk_score = 0.55

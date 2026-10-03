@@ -25,7 +25,9 @@ class RecoveryDataPipeline:
         delayed_signals: List[str] = []
         conflict_flags: List[str] = []
 
-        # 1. Device Evidence
+        # 1. Device Evidence Selection & Missing-Data Handling
+        # If device telemetry is unavailable, substitute neutral-uncertainty risk (0.60)
+        # and dampened confidence (0.30) rather than raising exceptions or halting pipeline.
         is_device_missing = (
             req.source_missing == "device"
             or (req.device_trust_score == 0.0 and not req.device_known)
@@ -42,12 +44,13 @@ class RecoveryDataPipeline:
             device_risk = base_dev_risk if req.device_known else max(0.50, base_dev_risk + 0.25)
             device_confidence = 0.90
 
-        # Check for delayed device intelligence
+        # Delayed device intelligence: Asynchronous device lookup queue latency
         if req.source_delayed == "device_intelligence":
             delayed_signals.append("device_intelligence")
             device_confidence = max(0.40, device_confidence - 0.25)
 
-        # 2. Identity Evidence
+        # 2. Identity Evidence Selection & Missing-Data Handling
+        # If identity verification is absent, substitute high risk (0.80) and low confidence (0.20)
         is_identity_missing = not req.identity_evidence_available or req.source_missing == "identity"
         if is_identity_missing:
             missing_signals.append("identity")
@@ -58,6 +61,7 @@ class RecoveryDataPipeline:
             identity_risk = max(0.0, 1.0 - req.identity_evidence_score)
             identity_confidence = 0.95
 
+        # Delayed identity evidence: Upstream registrar scan in progress; discounts confidence to prevent premature approval
         if req.source_delayed == "identity" or req.evidence_delay:
             delayed_signals.append("identity")
             identity_confidence = max(0.35, identity_confidence - 0.30)
@@ -77,7 +81,7 @@ class RecoveryDataPipeline:
         login_risk = max(0.0, 1.0 - req.login_history_consistency)
         available_signals.extend(["geo", "login_history"])
 
-        # 5. Directory Status Signal
+        # 5. Directory Status Signal: Maps institutional directory state to risk
         if req.source_missing == "directory":
             missing_signals.append("directory")
             directory_risk = 0.50
@@ -93,11 +97,12 @@ class RecoveryDataPipeline:
             directory_risk = dir_map.get(req.directory_status, 0.50)
             directory_confidence = 0.95
 
+        # Delayed directory sync: LDAP synchronization replication delay
         if req.source_delayed == "directory":
             delayed_signals.append("directory")
             directory_confidence = max(0.40, directory_confidence - 0.25)
 
-        # 6. MFA History Signal
+        # 6. MFA History Signal: Evaluates recent authenticator resets or lockouts
         mfa_map = {
             "ACTIVE_HEALTHY": 0.10,
             "RECENTLY_RESET": 0.45,
@@ -107,18 +112,18 @@ class RecoveryDataPipeline:
         mfa_risk = mfa_map.get(req.mfa_history, 0.50)
         available_signals.append("mfa_history")
 
-        # 7. Recovery Velocity
+        # 7. Recovery Velocity: Rolling 48-hour recovery attempt frequency
         velocity_risk = min(1.0, req.recovery_velocity * 0.25)
         available_signals.append("velocity")
 
-        # 8. Check Conflicting Evidence
-        # Case A: High device trust but hostile IP
+        # 8. Multi-Signal Conflict Detection (Cross-Dimensional Anomalies)
+        # Case A: High device trust but hostile IP (indicates stolen laptop or token replay over Tor)
         if req.device_trust_score > 0.75 and req.ip_risk_score > 0.70:
             conflict_flags.append("TRUSTED_DEVICE_WITH_HOSTILE_NETWORK")
-        # Case B: High identity evidence score but excessive recovery velocity
+        # Case B: High identity evidence score but excessive recovery velocity (indicates stolen credential stuffing)
         if req.identity_evidence_score > 0.80 and req.recovery_velocity >= 3:
             conflict_flags.append("VALID_IDENTITY_WITH_ABNORMAL_VELOCITY")
-        # Case C: Known device claimed but geo_consistency very low
+        # Case C: Known device claimed but geo_consistency very low (impossible travel time)
         if req.device_known and req.geo_consistency < 0.25:
             conflict_flags.append("KNOWN_DEVICE_FROM_IMPOSSIBLE_LOCATION")
 

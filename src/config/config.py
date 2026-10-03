@@ -11,6 +11,14 @@ DEFAULT_CONFIG_PATH = Path(__file__).parent / "risk_rules.json"
 
 
 class RiskConfig:
+    """
+    Centralized configuration management for the Risk-Based Verification Engine.
+    Loads and provides typed access to:
+      - global_weights: Component signal weighting parameters
+      - role_specific_policies: Persona calibrated thresholds (Student, Faculty, Alumni, Researcher)
+      - missing_data_penalties / delayed_data_penalties: Additive risk & confidence damping rules
+      - hard_rule_triggers: Deterministic circuit breakers (e.g. SUSPENDED directory status)
+    """
     def __init__(self, config_dict: Dict[str, Any] | None = None, config_path: Path | None = None):
         if config_dict is not None:
             self.raw_config = config_dict
