@@ -1,0 +1,206 @@
+{
+  "primary_success_metric": {
+    "name": "Legitimate Recovery Success at >= 99% Impersonation Resistance",
+    "target_impersonation_resistance": 0.99,
+    "baseline_impersonation_resistance": 1.0,
+    "proposed_impersonation_resistance": 1.0,
+    "baseline_legitimate_success": 0.3997,
+    "proposed_legitimate_success": 0.7377,
+    "legitimate_success_improvement": 0.338,
+    "target_achieved": true
+  },
+  "metrics_comparison": {
+    "legitimate_recovery_success_rate": {
+      "baseline": 0.3997,
+      "proposed": 0.7377
+    },
+    "impersonation_resistance": {
+      "baseline": 1.0,
+      "proposed": 1.0
+    },
+    "false_acceptance_rate": {
+      "baseline": 0.0,
+      "proposed": 0.0
+    },
+    "false_rejection_rate": {
+      "baseline": 0.0084,
+      "proposed": 0.0084
+    },
+    "manual_review_rate": {
+      "baseline": 0.4952,
+      "proposed": 0.2179
+    },
+    "precision": {
+      "baseline": 1.0,
+      "proposed": 1.0
+    },
+    "recall": {
+      "baseline": 0.3997,
+      "proposed": 0.7377
+    },
+    "f1_score": {
+      "baseline": 0.5711,
+      "proposed": 0.849
+    },
+    "missing_data_safety_rate": {
+      "baseline": 1.0,
+      "proposed": 1.0
+    },
+    "delayed_data_safety_rate": {
+      "baseline": 1.0,
+      "proposed": 1.0
+    }
+  },
+  "baseline_confusion_matrix": {
+    "binary": {
+      "true_positive": 2817,
+      "false_positive": 0,
+      "true_negative": 2952,
+      "false_negative": 4231
+    },
+    "ternary": {
+      "legitimate": {
+        "approved": 2817,
+        "manual_review": 4172,
+        "denied": 59
+      },
+      "fraud": {
+        "approved": 0,
+        "manual_review": 780,
+        "denied": 2172
+      }
+    }
+  },
+  "proposed_confusion_matrix": {
+    "binary": {
+      "true_positive": 5199,
+      "false_positive": 0,
+      "true_negative": 2952,
+      "false_negative": 1849
+    },
+    "ternary": {
+      "legitimate": {
+        "approved": 5199,
+        "manual_review": 1790,
+        "denied": 59
+      },
+      "fraud": {
+        "approved": 0,
+        "manual_review": 389,
+        "denied": 2563
+      }
+    }
+  },
+  "role_breakdown": {
+    "Student": {
+      "legitimate_recovery_success_rate": 0.8628,
+      "impersonation_resistance": 1.0,
+      "false_acceptance_rate": 0.0,
+      "false_rejection_rate": 0.003,
+      "manual_review_rate": 0.1546,
+      "precision": 1.0,
+      "recall": 0.8628,
+      "f1_score": 0.9264,
+      "missing_data_safety_rate": 1.0,
+      "delayed_data_safety_rate": 1.0
+    },
+    "Faculty": {
+      "legitimate_recovery_success_rate": 0.533,
+      "impersonation_resistance": 1.0,
+      "false_acceptance_rate": 0.0,
+      "false_rejection_rate": 0.0126,
+      "manual_review_rate": 0.3478,
+      "precision": 1.0,
+      "recall": 0.533,
+      "f1_score": 0.6954,
+      "missing_data_safety_rate": 1.0,
+      "delayed_data_safety_rate": 1.0
+    },
+    "Alumni": {
+      "legitimate_recovery_success_rate": 0.7776,
+      "impersonation_resistance": 1.0,
+      "false_acceptance_rate": 0.0,
+      "false_rejection_rate": 0.0146,
+      "manual_review_rate": 0.172,
+      "precision": 1.0,
+      "recall": 0.7776,
+      "f1_score": 0.8749,
+      "missing_data_safety_rate": 1.0,
+      "delayed_data_safety_rate": 1.0
+    },
+    "Temporary Researcher": {
+      "legitimate_recovery_success_rate": 0.3747,
+      "impersonation_resistance": 1.0,
+      "false_acceptance_rate": 0.0,
+      "false_rejection_rate": 0.0209,
+      "manual_review_rate": 0.3592,
+      "precision": 1.0,
+      "recall": 0.3747,
+      "f1_score": 0.5451,
+      "missing_data_safety_rate": 1.0,
+      "delayed_data_safety_rate": 1.0
+    }
+  },
+  "ablation_studies": {
+    "cohort_a_complete": {
+      "legitimate_recovery_success_rate": 0.7434,
+      "impersonation_resistance": 1.0,
+      "false_acceptance_rate": 0.0,
+      "false_rejection_rate": 0.0112,
+      "manual_review_rate": 0.217,
+      "precision": 1.0,
+      "recall": 0.7434,
+      "f1_score": 0.8528,
+      "missing_data_safety_rate": 1.0,
+      "delayed_data_safety_rate": 1.0
+    },
+    "cohort_b_10pct_device_missing": {
+      "legitimate_recovery_success_rate": 0.657,
+      "impersonation_resistance": 1.0,
+      "false_acceptance_rate": 0.0,
+      "false_rejection_rate": 0.0134,
+      "manual_review_rate": 0.273,
+      "precision": 1.0,
+      "recall": 0.657,
+      "f1_score": 0.793,
+      "missing_data_safety_rate": 1.0,
+      "delayed_data_safety_rate": 1.0
+    },
+    "cohort_c_25pct_device_missing": {
+      "legitimate_recovery_success_rate": 0.541,
+      "impersonation_resistance": 1.0,
+      "false_acceptance_rate": 0.0,
+      "false_rejection_rate": 0.0177,
+      "manual_review_rate": 0.3515,
+      "precision": 1.0,
+      "recall": 0.541,
+      "f1_score": 0.7022,
+      "missing_data_safety_rate": 1.0,
+      "delayed_data_safety_rate": 1.0
+    },
+    "cohort_d_identity_delayed": {
+      "legitimate_recovery_success_rate": 0.5721,
+      "impersonation_resistance": 1.0,
+      "false_acceptance_rate": 0.0,
+      "false_rejection_rate": 0.012,
+      "manual_review_rate": 0.3345,
+      "precision": 1.0,
+      "recall": 0.5721,
+      "f1_score": 0.7278,
+      "missing_data_safety_rate": 1.0,
+      "delayed_data_safety_rate": 1.0
+    },
+    "cohort_e_multi_unavailable": {
+      "legitimate_recovery_success_rate": 0.0,
+      "impersonation_resistance": 1.0,
+      "false_acceptance_rate": 0.0,
+      "false_rejection_rate": 0.0304,
+      "manual_review_rate": 0.7195,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "missing_data_safety_rate": 1.0,
+      "delayed_data_safety_rate": 1.0
+    }
+  }
+}

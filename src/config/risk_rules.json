@@ -1,0 +1,116 @@
+{
+  "policy_version": "2.4.0",
+  "policy_name": "University Multi-Signal Identity Verification & Recovery Policy",
+  "global_weights": {
+    "identity_evidence": 0.30,
+    "device_trust": 0.20,
+    "ip_risk": 0.15,
+    "geo_consistency": 0.12,
+    "login_history": 0.10,
+    "mfa_history": 0.08,
+    "recovery_velocity": 0.05
+  },
+  "baseline": {
+    "identity_evidence_threshold": 0.80,
+    "require_known_device": true,
+    "denial_identity_threshold": 0.35
+  },
+  "default_decision_thresholds": {
+    "approval_risk_ceiling": 0.30,
+    "denial_risk_floor": 0.70,
+    "minimum_confidence_for_approval": 0.70
+  },
+  "role_specific_policies": {
+    "Student": {
+      "approval_risk_ceiling": 0.32,
+      "denial_risk_floor": 0.72,
+      "minimum_confidence_for_approval": 0.65,
+      "description": "Standard university threshold balancing academic access with security",
+      "velocity_alert_threshold": 2
+    },
+    "Faculty": {
+      "approval_risk_ceiling": 0.25,
+      "denial_risk_floor": 0.65,
+      "minimum_confidence_for_approval": 0.80,
+      "description": "Stricter impersonation resistance for privileged academic and administrative access",
+      "velocity_alert_threshold": 1,
+      "unknown_device_penalty": 0.08
+    },
+    "Alumni": {
+      "approval_risk_ceiling": 0.28,
+      "denial_risk_floor": 0.68,
+      "minimum_confidence_for_approval": 0.75,
+      "description": "Enhanced reliance on verified identity records with allowance for updated personal devices",
+      "identity_weight_boost": 0.10,
+      "velocity_alert_threshold": 2
+    },
+    "Temporary Researcher": {
+      "approval_risk_ceiling": 0.20,
+      "denial_risk_floor": 0.60,
+      "minimum_confidence_for_approval": 0.85,
+      "description": "Highest security posture requiring strict sponsorship verification and manual oversight",
+      "velocity_alert_threshold": 1,
+      "mandatory_manual_review_on_any_anomaly": true
+    }
+  },
+  "missing_data_penalties": {
+    "device": {
+      "confidence_penalty": 0.20,
+      "risk_penalty": 0.10,
+      "reason_code": "MISSING_DEVICE_TELEMETRY"
+    },
+    "identity": {
+      "confidence_penalty": 0.35,
+      "risk_penalty": 0.25,
+      "reason_code": "MISSING_IDENTITY_EVIDENCE"
+    },
+    "directory": {
+      "confidence_penalty": 0.15,
+      "risk_penalty": 0.15,
+      "reason_code": "MISSING_DIRECTORY_STATUS"
+    },
+    "network": {
+      "confidence_penalty": 0.10,
+      "risk_penalty": 0.08,
+      "reason_code": "MISSING_NETWORK_INTELLIGENCE"
+    }
+  },
+  "delayed_data_penalties": {
+    "directory": {
+      "confidence_penalty": 0.10,
+      "reason_code": "DELAYED_DIRECTORY_RECORD"
+    },
+    "device_intelligence": {
+      "confidence_penalty": 0.10,
+      "reason_code": "DELAYED_DEVICE_REPUTATION"
+    },
+    "identity": {
+      "confidence_penalty": 0.22,
+      "reason_code": "DELAYED_IDENTITY_DOCUMENT_PROCESSING"
+    }
+  },
+  "hard_rule_triggers": {
+    "directory_suspended": {
+      "field": "directory_status",
+      "operator": "equals",
+      "value": "SUSPENDED",
+      "forced_decision": "DENY",
+      "reason_code": "HARD_BLOCK_DIRECTORY_ACCOUNT_SUSPENDED"
+    },
+    "extreme_velocity": {
+      "field": "recovery_velocity",
+      "operator": "greater_than_or_equal",
+      "value": 4,
+      "forced_decision": "DENY",
+      "reason_code": "HARD_BLOCK_EXCESSIVE_RECOVERY_VELOCITY"
+    },
+    "malicious_ip_unknown_device": {
+      "conditions": [
+        { "field": "ip_risk_score", "operator": "greater_than_or_equal", "value": 0.90 },
+        { "field": "device_known", "operator": "equals", "value": false }
+      ],
+      "forced_decision": "DENY",
+      "reason_code": "HARD_BLOCK_TOR_PROXY_WITH_UNRECOGNIZED_DEVICE"
+    }
+  }
+}

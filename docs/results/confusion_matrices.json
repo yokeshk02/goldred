@@ -1,0 +1,42 @@
+{
+  "baseline": {
+    "binary": {
+      "true_positive": 2817,
+      "false_positive": 0,
+      "true_negative": 2952,
+      "false_negative": 4231
+    },
+    "ternary": {
+      "legitimate": {
+        "approved": 2817,
+        "manual_review": 4172,
+        "denied": 59
+      },
+      "fraud": {
+        "approved": 0,
+        "manual_review": 780,
+        "denied": 2172
+      }
+    }
+  },
+  "proposed": {
+    "binary": {
+      "true_positive": 5199,
+      "false_positive": 0,
+      "true_negative": 2952,
+      "false_negative": 1849
+    },
+    "ternary": {
+      "legitimate": {
+        "approved": 5199,
+        "manual_review": 1790,
+        "denied": 59
+      },
+      "fraud": {
+        "approved": 0,
+        "manual_review": 389,
+        "denied": 2563
+      }
+    }
+  }
+}
